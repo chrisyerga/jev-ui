@@ -18,16 +18,18 @@ function getClient() {
   return client;
 }
 
-export const CHUNK_SIZE = Number(process.env.JEV_CHUNK_SIZE ?? 120);
+/** Questions per request; larger sets are split and sent in parallel to stay under the context budget. */
+export const CHUNK_SIZE = Number(process.env.JEV_CHUNK_SIZE ?? 400);
 
 export interface JudgeOptions {
   items: { id: string; label: string }[];
-  /** State key the candidate labels are listed under, e.g. "candidates". */
-  listKey: string;
-  /** State shared by every chunk, e.g. the filter text. */
-  sharedState: Record<string, JsonValue>;
-  /** Question for the candidate at `index` within its chunk's list. */
-  buildQuestion: (index: number) => Question;
+  /** State shared by every question, e.g. the filter text. */
+  state: Record<string, JsonValue>;
+  /**
+   * Question about one candidate. Put the candidate's label in the question itself:
+   * pointing at `list[i]` in state is an extra hop that Jev resolves poorly.
+   */
+  buildQuestion: (label: string) => Question;
   /** Questions about the shared state only, asked once in the first chunk. */
   extraQuestions?: Questions;
 }
@@ -40,14 +42,13 @@ export interface JudgeResult {
 
 const SAMPLE_QUESTIONS = 3;
 
-function sample<T>(record: Record<string, T>, n: number) {
-  const entries = Object.entries(record);
+function sample<T>(entries: [string, T][], n: number) {
   const shown = Object.fromEntries(entries.slice(0, n));
   return entries.length > n ? { ...shown, [`…${entries.length - n} more`]: null } : shown;
 }
 
 export async function judgeCandidates(opts: JudgeOptions): Promise<JudgeResult> {
-  const { items, listKey, sharedState, buildQuestion, extraQuestions = {} } = opts;
+  const { items, state, buildQuestion, extraQuestions = {} } = opts;
   const chunks: (typeof items)[] = [];
   for (let i = 0; i < items.length; i += CHUNK_SIZE) chunks.push(items.slice(i, i + CHUNK_SIZE));
   if (chunks.length === 0) chunks.push([]);
@@ -56,16 +57,15 @@ export async function judgeCandidates(opts: JudgeOptions): Promise<JudgeResult> 
   const results = await Promise.all(
     chunks.map((chunk, chunkIndex) => {
       const questions: Questions = {};
-      chunk.forEach((_, i) => {
-        questions[`c${i}`] = buildQuestion(i);
+      chunk.forEach((item, i) => {
+        questions[`c${i}`] = buildQuestion(item.label);
       });
       if (chunkIndex === 0) {
         for (const [key, q] of Object.entries(extraQuestions)) questions[`x_${key}`] = q;
       }
-      const state = { ...sharedState, [listKey]: chunk.map((c) => c.label) };
       return getClient()
         .systemOne({ state, questions })
-        .then((res) => ({ chunk, state, questions, res }));
+        .then((res) => ({ chunk, questions, res }));
     }),
   );
   const latencyMs = Math.round(performance.now() - started);
@@ -86,6 +86,7 @@ export async function judgeCandidates(opts: JudgeOptions): Promise<JudgeResult> 
   }
 
   const first = results[0];
+  const questionEntries = first ? Object.entries(first.questions) : [];
   const debug: JevCallDebug = {
     chunks: chunks.length,
     questions: results.reduce((n, r) => n + Object.keys(r.questions).length, 0),
@@ -94,19 +95,20 @@ export async function judgeCandidates(opts: JudgeOptions): Promise<JudgeResult> 
     model: first?.res.model ?? "unknown",
     cached: false,
     sampleRequest: first && {
-      state: {
-        ...first.state,
-        [listKey]: sample(Object.fromEntries(first.chunk.map((c, i) => [i, c.label])), 8),
-      },
+      state,
       questions: {
-        ...sample(
-          Object.fromEntries(Object.entries(first.questions).filter(([k]) => !k.startsWith("x_"))),
-          SAMPLE_QUESTIONS,
-        ),
-        ...Object.fromEntries(Object.entries(first.questions).filter(([k]) => k.startsWith("x_"))),
+        ...sample(questionEntries.filter(([k]) => !k.startsWith("x_")), SAMPLE_QUESTIONS),
+        ...Object.fromEntries(questionEntries.filter(([k]) => k.startsWith("x_"))),
       },
     },
-    sampleAnswers: first && sample(first.res.answers as Record<string, unknown>, 8),
+    sampleAnswers:
+      first &&
+      (() => {
+        const answers = first.res.answers as Record<string, unknown>;
+        const byLabel = first.chunk.map((item, i): [string, unknown] => [`${item.label} (c${i})`, answers[`c${i}`]]);
+        const extras = Object.entries(answers).filter(([k]) => k.startsWith("x_"));
+        return { ...Object.fromEntries(extras), ...sample(byLabel, 8) };
+      })(),
   };
 
   return { byId, extra, debug };
