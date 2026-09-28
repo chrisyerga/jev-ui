@@ -1,11 +1,17 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { clearCalls, useCallLogs, type CallLog } from "../lib/inspector";
+import { estimateJevCostUsd, formatJevCostUsd } from "../lib/jevCost";
+
+function billedInputTokens(log: CallLog): number {
+  return log.debug && !log.debug.cached ? log.debug.inputTokens : 0;
+}
 
 export function Inspector() {
   const logs = useCallLogs();
   const [open, setOpen] = useState(false);
-  const totalTokens = logs.reduce((n, l) => n + (l.debug && !l.debug.cached ? l.debug.inputTokens : 0), 0);
+  const totalTokens = logs.reduce((n, l) => n + billedInputTokens(l), 0);
+  const totalCost = estimateJevCostUsd(totalTokens);
 
   useEffect(() => {
     if (!open) return;
@@ -41,6 +47,7 @@ export function Inspector() {
           >
             <span className="size-2 rounded-full bg-accent shadow-[0_0_10px] shadow-accent" />
             Inspector · {logs.length} calls · {totalTokens.toLocaleString()} tokens
+            <span className="text-lime">{formatJevCostUsd(totalCost)} est.</span>
             <span className="text-zinc-500">{open ? "Hide" : "Show"}</span>
           </button>
         </div>
@@ -106,6 +113,9 @@ function LogRow({ log }: { log: CallLog }) {
               <span>{d.questions} questions</span>
               <span>{d.chunks} req</span>
               <span>{d.inputTokens.toLocaleString()} tok</span>
+              <span className="text-lime">
+                {d.cached ? "$0 est." : formatJevCostUsd(estimateJevCostUsd(d.inputTokens))}
+              </span>
               <span className="text-zinc-600">{d.model}</span>
             </>
           ) : null}
