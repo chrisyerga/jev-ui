@@ -2,9 +2,9 @@
 
 **Live demo: [jev-ui.newtricks.ai](https://jev-ui.newtricks.ai)**
 
-Jev is fast and cheap per request, so a UI control can call AI on every keystroke and still feel responsive and cost almost nothing. This repo is a playground for what that allows: semantic search filtering, intelligent geographic and demographic selection, and more.
+Jev's latency and cost are such that you can start to imagine including calls to an AI model inside your browser interaction event loop. This repo is a playground for exploring these concepts: semantic search filtering, intelligent geographic and demographic selection, and more.
 
-The core idea is that much of the intelligence we used to write into UI code can now move out of the source and into calls to [Jev](https://typesafe.ai). Consider a location picker. It usually ships with hand-built metadata: region tags, "is coastal" flags, synonym tables. Here the picker only knows place names. When you type "coastal" or "ski towns", Jev decides which places match, using its own world knowledge.
+The core idea is that much of the intelligence we used to write into UI code can now move out of our code and into calls to [Jev](https://typesafe.ai). Consider a location picker. It usually ships with hand-built metadata: region tags, "is coastal" flags, synonym tables. Here the picker only knows place names. When you type "coastal" or "ski towns", Jev decides which places match, using its own world knowledge.
 
 The thought experiment behind the repo is this:
 
@@ -13,10 +13,10 @@ The thought experiment behind the repo is this:
 Taken to the limit, you get a UI toolkit whose widgets take cues from their surroundings:
 
 - A list view that understands the data it holds.
-- A radio group that infers meaning from where it sits on the page.
 - A button that knows what its label promises.
+- Controls that provide hints or auto-populate based on interactions with other controls.
 
-Some of these ideas are deliberately ridiculous. That's the point. Taking them seriously pulls us past the first, obvious uses of Jev and toward what a semantically aware interface could be.
+Some of these ideas are deliberately ridiculous. That's the point. Taking them seriously pulls us past the first, obvious uses of Jev and toward what a semantically aware interface toolkit could be.
 
 ![Targeting Lab: a campaign brief pre-fills geography and demographics, "ski towns" and "buys almond milk" filters show Jev's per-item match probabilities, and the audience-fit check reports no conflicts](docs/screenshot.png)
 
