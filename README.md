@@ -1,6 +1,6 @@
-# Jev UI Experiments · Targeting Lab
+# Jev UI Playground
 
-**Live demo: [jev-ui.newtricks.ai](https://jev-ui.newtricks.ai)**
+**Live: [jev-ui.newtricks.ai](https://jev-ui.newtricks.ai)**. The landing page links to each experiment; the first is the [Targeting Lab](https://jev-ui.newtricks.ai/targeting).
 
 Jev's latency and cost are such that you can start to imagine including calls to an AI model inside your browser interaction event loop. This repo is a playground for exploring these concepts: semantic search filtering, intelligent geographic and demographic selection, and more.
 
@@ -22,7 +22,7 @@ Some of these ideas are deliberately ridiculous. That's the point. Taking them s
 
 ## The first experiment: ad targeting
 
-The Targeting Lab is a mock ad-targeting setup screen. It has two pickers: US geography (51 states and DC, plus 323 cities) and audience demographics (184 segments across age, income, education, household, occupation, interests, life events and purchase behavior). The candidate lists contain **only names**. No attributes, tags or categories are stored.
+The [Targeting Lab](https://jev-ui.newtricks.ai/targeting) (`/targeting`) is a mock ad-targeting setup screen. It has two pickers: US geography (51 states and DC, plus 323 cities) and audience demographics (184 segments across age, income, education, household, occupation, interests, life events and purchase behavior). The candidate lists contain **only names**. No attributes, tags or categories are stored.
 
 - **Semantic filter boxes.** Type `coastal`, `rust belt`, `hurricane prone` or `college towns` in the geography box. Type `buys almond milk`, `about to retire` or `weekend warriors` in the demographics box. Jev scores every candidate against the query, and results are ranked by match probability. Exact name matches still work instantly. Near misses just below the threshold stay one click away.
 - **Match threshold.** A slider sets the minimum probability a candidate needs to count as a match. Each result shows a confidence bar, so you can see how sure Jev is.
@@ -56,9 +56,12 @@ The Jev integration lives in `server/jev.ts` (batching and chunking) and `server
 
 ```
 src/
+  App.tsx       Route table (path → page and document title)
+  examples.ts   Example registry shown on the landing page
+  pages/        Home (landing page) and one page per experiment
   components/   SmartFilter, BriefBox, FitPanel, SummaryPanel, Inspector, ThresholdSlider
   data/         geo.ts and demographics.ts (names only, plus mock reach numbers)
-  lib/          API client, filter hook, inspector store, cost estimate
+  lib/          Router, API client, filter hook, inspector store, cost estimate
   shared/       Types shared by client and server
 server/
   index.ts      Hono app: /api, /healthz, rate limit, static files in production
@@ -76,7 +79,7 @@ cp .env.example .env    # then set TYPESAFE_API_KEY
 pnpm dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173). Vite serves the UI, and the Hono API runs on port 8787 behind Vite's `/api` proxy.
+Open [http://localhost:5173](http://localhost:5173) for the landing page, or [/targeting](http://localhost:5173/targeting) for the Targeting Lab. Vite serves the UI, and the Hono API runs on port 8787 behind Vite's `/api` proxy.
 
 Optional settings in `.env`:
 
@@ -91,6 +94,15 @@ pnpm lint
 pnpm build        # builds the UI to dist/ and the server to dist-server/
 pnpm start        # production server on :3000, serving the built UI
 ```
+
+## Adding an experiment
+
+1. Create a page in `src/pages/`.
+2. Add its path to `ROUTES` in `src/App.tsx`.
+3. Add an entry to `EXAMPLES` in `src/examples.ts`. Entries without a `path` appear on the landing page as "Planned".
+4. Put any Jev endpoints in `server/routes.ts`, next to the existing ones.
+
+Routing is a small `pushState` router in `src/lib/router.tsx`. In production, the server returns `index.html` for any path it doesn't recognize, so deep links work.
 
 ## Deployment
 
