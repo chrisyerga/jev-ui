@@ -1,0 +1,12 @@
+services:
+  web:
+    image: ${WEB_IMAGE:-ghcr.io/chrisyerga/jev-ui:latest}
+    container_name: jev-ui-web
+    restart: unless-stopped
+    environment:
+      - TYPESAFE_API_KEY
+    networks:
+      - porch
+networks:
+  porch:
+    external: true
