@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { clearCalls, useCallLogs, type CallLog } from "../lib/inspector";
 
 export function Inspector() {
@@ -7,48 +7,83 @@ export function Inspector() {
   const [open, setOpen] = useState(false);
   const totalTokens = logs.reduce((n, l) => n + (l.debug && !l.debug.cached ? l.debug.inputTokens : 0), 0);
 
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40">
-      <div className="mx-auto max-w-7xl px-4">
-        <button
-          onClick={() => setOpen((o) => !o)}
-          className="ml-auto flex items-center gap-3 rounded-t-2xl border border-b-0 border-white/10 bg-ink-800/95 px-4 py-2 font-mono text-xs text-zinc-300 backdrop-blur"
-        >
-          <span className="size-2 rounded-full bg-accent shadow-[0_0_10px] shadow-accent" />
-          Inspector · {logs.length} calls · {totalTokens.toLocaleString()} tokens
-          <span className="text-zinc-500">{open ? "▾" : "▴"}</span>
-        </button>
-      </div>
+    <>
       <AnimatePresence>
         {open && (
-          <motion.div
-            initial={{ height: 0 }}
-            animate={{ height: "46vh" }}
-            exit={{ height: 0 }}
-            transition={{ type: "spring", damping: 30, stiffness: 300 }}
-            className="overflow-hidden border-t border-white/10 bg-ink-950/95 backdrop-blur-xl"
-          >
-            <div className="scroll-thin mx-auto h-full max-w-7xl overflow-y-auto px-4 py-4">
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-xs text-zinc-500">
-                  Every call the page makes to its server, and the Jev request behind it. Question lists are truncated to the
-                  first few.
-                </p>
-                <button onClick={clearCalls} className="text-xs text-zinc-500 hover:text-zinc-200">
-                  Clear
-                </button>
-              </div>
-              {logs.length === 0 && <p className="py-10 text-center text-sm text-zinc-600">No calls yet. Type in a filter.</p>}
-              <div className="space-y-2">
-                {logs.map((log) => (
-                  <LogRow key={log.id} log={log} />
-                ))}
-              </div>
-            </div>
-          </motion.div>
+          <motion.button
+            type="button"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            aria-label="Close inspector"
+            className="fixed inset-0 z-30 bg-black/50 backdrop-blur-[2px]"
+            onClick={() => setOpen(false)}
+          />
         )}
       </AnimatePresence>
-    </div>
+      <div className="fixed inset-x-0 bottom-0 z-40">
+        <div className="mx-auto max-w-7xl px-4">
+          <button
+            type="button"
+            aria-expanded={open}
+            onClick={() => setOpen((o) => !o)}
+            className="relative z-10 ml-auto flex items-center gap-3 rounded-t-2xl border border-b-0 border-white/10 bg-ink-800/95 px-4 py-2 font-mono text-xs text-zinc-300 backdrop-blur"
+          >
+            <span className="size-2 rounded-full bg-accent shadow-[0_0_10px] shadow-accent" />
+            Inspector · {logs.length} calls · {totalTokens.toLocaleString()} tokens
+            <span className="text-zinc-500">{open ? "Hide" : "Show"}</span>
+          </button>
+        </div>
+        <AnimatePresence>
+          {open && (
+            <motion.div
+              initial={{ height: 0 }}
+              animate={{ height: "46vh" }}
+              exit={{ height: 0 }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="relative z-10 overflow-hidden border-t border-white/10 bg-ink-950/95 backdrop-blur-xl"
+            >
+              <div className="scroll-thin mx-auto flex h-full max-w-7xl flex-col px-4 py-4">
+                <div className="mb-3 flex shrink-0 items-start justify-between gap-4">
+                  <p className="text-xs text-zinc-500">
+                    Every call the page makes to its server, and the Jev request behind it. Question lists are truncated to the
+                    first few. Press <kbd className="rounded border border-white/15 px-1 font-mono text-[10px] text-zinc-400">Esc</kbd> or click outside to close.
+                  </p>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <button type="button" onClick={clearCalls} className="text-xs text-zinc-500 hover:text-zinc-200">
+                      Clear
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOpen(false)}
+                      className="rounded-full border border-white/15 px-3 py-1 text-xs font-medium text-zinc-200 hover:border-white/30 hover:bg-white/5"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+                <div className="min-h-0 flex-1 space-y-2 overflow-y-auto scroll-thin">
+                  {logs.length === 0 && <p className="py-10 text-center text-sm text-zinc-600">No calls yet. Type in a filter.</p>}
+                  {logs.map((log) => (
+                    <LogRow key={log.id} log={log} />
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </>
   );
 }
 
