@@ -3,6 +3,10 @@ import type {
   BriefResponse,
   ColumnRequest,
   ColumnResponse,
+  CrossCheckRequest,
+  CrossCheckResponse,
+  FieldSpecRequest,
+  FieldSpecResponse,
   FilterRequest,
   FilterResponse,
   FitRequest,
@@ -37,4 +41,6 @@ export const api = {
   brief: (body: BriefRequest, signal?: AbortSignal) => post<BriefResponse>("/api/brief", body, signal),
   fit: (body: FitRequest, signal?: AbortSignal) => post<FitResponse>("/api/fit", body, signal),
   column: (body: ColumnRequest, signal?: AbortSignal) => post<ColumnResponse>("/api/column", body, signal),
+  crossCheck: (body: CrossCheckRequest, signal?: AbortSignal) => post<CrossCheckResponse>("/api/crosscheck", body, signal),
+  fieldSpec: (body: FieldSpecRequest, signal?: AbortSignal) => post<FieldSpecResponse>("/api/fieldspec", body, signal),
 };

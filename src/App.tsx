@@ -1,5 +1,6 @@
 import { useEffect, type ComponentType } from "react";
 import { Link, usePathname } from "./lib/router";
+import CrossCheckForms from "./pages/CrossCheckForms";
 import Home from "./pages/Home";
 import SmartTable from "./pages/SmartTable";
 import TargetingLab from "./pages/TargetingLab";
@@ -8,6 +9,7 @@ const ROUTES: Record<string, { title: string; Page: ComponentType }> = {
   "/": { title: "Jev UI Playground", Page: Home },
   "/targeting": { title: "Targeting Lab · Jev UI Playground", Page: TargetingLab },
   "/tables": { title: "Self-aware Tables · Jev UI Playground", Page: SmartTable },
+  "/forms": { title: "Forms that Cross-check · Jev UI Playground", Page: CrossCheckForms },
 };
 
 export default function App() {

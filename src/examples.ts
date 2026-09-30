@@ -1,7 +1,7 @@
 export interface Example {
   number: string;
   title: string;
-  /** Word rendered in italic accent after the title, matching each page's heading. */
+  /** Word rendered in the accent color after the title, matching each page's heading. */
   titleAccent?: string;
   summary: string;
   concepts: string[];
@@ -32,8 +32,9 @@ export const EXAMPLES: Example[] = [
     title: "Forms that",
     titleAccent: "Cross-check",
     summary:
-      "Fields that sanity-check each other, like a shipping address that doesn't match the stated country, and defaults that adapt to the label they sit under.",
-    concepts: ["Consistency checks", "Label-aware defaults"],
+      "Fields that sanity-check each other with no rules written, like a postcode from the wrong city or skiing in Miami in July, and controls that pick their options and default from their label.",
+    concepts: ["Rule-free consistency checks", "Blame attribution", "Label-aware defaults"],
+    path: "/forms",
   },
 ];
 

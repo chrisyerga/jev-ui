@@ -5,6 +5,8 @@ export const LIMITS = {
   briefChars: 1000,
   fitSelections: 60,
   attributeChars: 80,
+  formValueChars: 300,
+  fieldLabelChars: 80,
 } as const;
 
 export interface JevCallDebug {
@@ -80,6 +82,51 @@ export interface ColumnRequest {
 export interface ColumnResponse {
   /** Probability-weighted level per movie id, 0 (not at all) to 3 (extremely). */
   results: Record<string, FitResult>;
+  debug: JevCallDebug;
+}
+
+export interface CrossCheckRequest {
+  form: string;
+  /** Field key to value; blank fields are ignored. */
+  values: Record<string, string>;
+  /** The user's local date as YYYY-MM-DD, so relative dates ("tomorrow") can be checked. */
+  today: string;
+}
+
+export interface FieldCheck {
+  /** Probability that this field contradicts the rest of the form. */
+  suspicion: number;
+  /** Key of the field it most likely clashes with, or null if it clashes with none in particular. */
+  clashWith: string | null;
+  clashConfidence: number;
+}
+
+export interface CrossCheckResponse {
+  /** Per filled field key. */
+  fields: Record<string, FieldCheck>;
+  debug: JevCallDebug;
+}
+
+export interface FieldSpecRequest {
+  label: string;
+  context: string;
+}
+
+export interface ChoiceResult {
+  choice: string;
+  confidence: number;
+  probabilities: Record<string, number>;
+}
+
+export interface FieldSpecResponse {
+  inputType: ChoiceResult;
+  optionSet: ChoiceResult;
+  /** The best default option for every option set, keyed by option set id. */
+  defaults: Record<string, ChoiceResult>;
+  /** Probability that this field should come pre-filled at all. */
+  shouldDefault: number;
+  /** For toggles: probability the sensible default is on. */
+  toggleOn: number;
   debug: JevCallDebug;
 }
 

@@ -1,6 +1,8 @@
-import { noul, score, type NoulQuestion } from "@typesafe-ai/sdk";
+import { choice, noul, score, type NoulQuestion, type Questions } from "@typesafe-ai/sdk";
 import { Hono } from "hono";
 import { DEMO_BY_ID, DEMO_ITEMS } from "../src/data/demographics.js";
+import { INPUT_TYPES, OPTION_SET_IDS, OPTION_SETS, SANDBOX_CONTEXTS, type SandboxContextId } from "../src/data/fieldCatalog.js";
+import { FORMS, type FormId } from "../src/data/forms.js";
 import { GEO_BY_ID, GEO_ITEMS } from "../src/data/geo.js";
 import { MOVIES } from "../src/data/movies.js";
 import {
@@ -9,8 +11,13 @@ import {
   LIMITS,
   type BriefRequest,
   type BriefResponse,
+  type ChoiceResult,
   type ColumnRequest,
   type ColumnResponse,
+  type CrossCheckRequest,
+  type CrossCheckResponse,
+  type FieldSpecRequest,
+  type FieldSpecResponse,
   type FilterKind,
   type FilterRequest,
   type FilterResponse,
@@ -47,6 +54,56 @@ function scoresOf(result: JudgeResult) {
 
 function noulOf(a: Answer | undefined) {
   return a?.type === "noul" ? a.noul : 0;
+}
+
+function choiceOf(a: Answer | undefined): ChoiceResult {
+  return a?.type === "choice"
+    ? { choice: a.choice, confidence: a.confidence, probabilities: { ...a.probabilities } }
+    : { choice: "", confidence: 0, probabilities: {} };
+}
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function crossCheckQuestion(label: string): NoulQuestion {
+  return noul(
+    {
+      field: label,
+      question:
+        "Would a careful person checking this form, using real-world knowledge, flag the answer to `field` as probably wrong given the other answers in `answers`?",
+    },
+    {
+      true: "The answer to `field` is impossible or very unlikely together with at least one other answer, so it is probably a mistake",
+      false:
+        "The answer to `field` is plausible together with every other answer. Unusual but real combinations are plausible, such as a small town that shares its name with a famous city elsewhere",
+    },
+  );
+}
+
+function fieldSpecQuestions(): Questions {
+  const questions: Questions = {
+    type: choice("What kind of input should the field labeled `label` on `form` be?", INPUT_TYPES),
+    options: choice("If the field labeled `label` on `form` offers a fixed list of options, which list fits it best?", {
+      ...Object.fromEntries(OPTION_SET_IDS.map((id) => [id, OPTION_SETS[id].description])),
+      none: "None of these lists fit; the answer is free-form or a single yes/no",
+    }),
+    should: noul("Is it good form design to pre-select a typical answer for the field labeled `label` on `form`?", {
+      true: "Pre-selecting a typical answer helps most people, is harmless, and is easy to change",
+      false:
+        "Pre-filling would be presumptuous or harmful: personal details like names or birthdays, consent or marketing opt-ins, legal agreements, or anything that must be a deliberate choice",
+    }),
+    on: noul("If the field labeled `label` on `form` is a checkbox or switch, should it start switched on?", {
+      true: "Most people want it on, and starting on is in their interest",
+      false: "It should start off, for example consent, marketing, or anything a person must opt into",
+    }),
+  };
+  for (const id of OPTION_SET_IDS) {
+    const set = OPTION_SETS[id];
+    questions[`default_${id}`] = choice(
+      { options: set.description, question: "If the field labeled `label` on `form` offered these options, which would most people pick?" },
+      Object.fromEntries(set.options.map((o) => [o, null])),
+    );
+  }
+  return questions;
 }
 
 const GEO_CANDIDATES = GEO_ITEMS.map((g) => ({ id: g.id, label: g.label }));
@@ -223,6 +280,90 @@ export const api = new Hono()
           score({ movie: label, question: "How well does `attribute` describe `movie`?" }, COLUMN_LEVELS),
       });
       return { results: scoresOf(result), debug: result.debug };
+    });
+    return c.json(response);
+  })
+  .post("/crosscheck", async (c) => {
+    const body = await c.req.json<Partial<CrossCheckRequest>>();
+    const form = typeof body.form === "string" && Object.hasOwn(FORMS, body.form) ? FORMS[body.form as FormId] : undefined;
+    const today = typeof body.today === "string" && DATE_RE.test(body.today) ? body.today : "";
+    const values: Record<string, unknown> = body.values && typeof body.values === "object" ? body.values : {};
+    if (!form || !today) return c.json({ error: "Expected { form: 'checkout' | 'trip', values, today: 'YYYY-MM-DD' }" }, 400);
+
+    const filled = form.fields.flatMap((field) => {
+      const value = values[field.key];
+      return typeof value === "string" && value.trim() ? [{ field, value: value.trim() }] : [];
+    });
+    if (filled.some((f) => f.value.length > LIMITS.formValueChars)) {
+      return c.json({ error: `Answers are limited to ${LIMITS.formValueChars} characters` }, 400);
+    }
+    if (filled.length < 2) return c.json({ error: "Fill in at least two fields to cross-check" }, 400);
+
+    const key = `crosscheck:${form.id}:${today}:${JSON.stringify(filled.map((f) => [f.field.key, f.value]))}`;
+    const response = await cached<CrossCheckResponse>(key, async () => {
+      const extraQuestions: Questions = {};
+      for (const { field } of filled) {
+        const others = filled.filter((o) => o.field.key !== field.key);
+        extraQuestions[`clash_${field.key}`] = choice(
+          { field: field.label, question: "Which other answer in `answers` conflicts most with the answer to `field`?" },
+          {
+            ...Object.fromEntries(others.map((o) => [o.field.label, null])),
+            none: "The answer to `field` does not conflict with any other answer",
+          },
+        );
+      }
+      const result = await judgeCandidates({
+        items: filled.map(({ field }) => ({ id: field.key, label: field.label })),
+        state: {
+          form: form.context,
+          today,
+          answers: Object.fromEntries(filled.map((f) => [f.field.label, f.value])),
+        },
+        buildQuestion: crossCheckQuestion,
+        extraQuestions,
+      });
+      const keyOfLabel = new Map(form.fields.map((f) => [f.label, f.key]));
+      const fields = Object.fromEntries(
+        filled.map(({ field }) => {
+          const clash = result.extra[`clash_${field.key}`];
+          const pick = clash?.type === "choice" ? clash : undefined;
+          return [
+            field.key,
+            {
+              suspicion: noulOf(result.byId[field.key]),
+              clashWith: (pick && keyOfLabel.get(pick.choice)) ?? null,
+              clashConfidence: pick?.confidence ?? 0,
+            },
+          ];
+        }),
+      );
+      return { fields, debug: result.debug };
+    });
+    return c.json(response);
+  })
+  .post("/fieldspec", async (c) => {
+    const body = await c.req.json<Partial<FieldSpecRequest>>();
+    const label = typeof body.label === "string" ? body.label.trim() : "";
+    const context =
+      typeof body.context === "string" && Object.hasOwn(SANDBOX_CONTEXTS, body.context) ? (body.context as SandboxContextId) : undefined;
+    if (!label || !context) return c.json({ error: "Expected { label, context }" }, 400);
+    if (label.length > LIMITS.fieldLabelChars) return c.json({ error: `Labels are limited to ${LIMITS.fieldLabelChars} characters` }, 400);
+
+    const response = await cached<FieldSpecResponse>(`fieldspec:${context}:${label.toLowerCase()}`, async () => {
+      const result = await judgeCandidates({
+        items: [],
+        state: { form: SANDBOX_CONTEXTS[context].description, label },
+        buildQuestion: () => noul(null),
+        extraQuestions: fieldSpecQuestions(),
+      });
+      return {
+        inputType: choiceOf(result.extra.type),
+        optionSet: choiceOf(result.extra.options),
+        defaults: Object.fromEntries(OPTION_SET_IDS.map((id) => [id, choiceOf(result.extra[`default_${id}`])])),
+        shouldDefault: noulOf(result.extra.should),
+        toggleOn: noulOf(result.extra.on),
+        debug: result.debug,
+      };
     });
     return c.json(response);
   });
