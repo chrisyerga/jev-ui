@@ -38,6 +38,8 @@ The [Targeting Lab](https://jev-ui.newtricks.ai/targeting) (`/targeting`) is a m
 - **Jev-computed columns.** Add a column like `how scary`, `date-night friendly` or `OK for a 10-year-old`, and Jev rates every movie from "Not at all" to "Extremely". Added columns sort like any other column. The bar dims when Jev is less confident.
 - **Combine them.** Filter to `set in tokyo`, then sort by `how scary`.
 
+![Self-aware Tables: semantic filter "funny and gory" with Jev-computed "how funny" and "how scary" columns](docs/screenshot-tables.png)
+
 A filter query costs about 34k input tokens, roughly $0.0014, and returns in around 350 to 500 ms. An added column costs about 39k tokens, since each Score question is a little longer than a Noul.
 
 ## How it uses Jev
