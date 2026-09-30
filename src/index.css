@@ -1,18 +1,19 @@
 @import "tailwindcss";
 
 @theme {
-  --font-display: "Instrument Serif", ui-serif, Georgia, serif;
-  --font-sans: "Inter Tight", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-display: "Bebas Neue", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 
   --color-ink-950: #09080d;
   --color-ink-900: #121019;
   --color-ink-800: #1b1824;
   --color-ink-700: #2a2635;
-  --color-accent: #ff3d8b;
-  --color-accent-deep: #a40648;
-  --color-glow: #ffb4d2;
-  --color-lime: #c8f169;
+  --color-accent: #38bdf8;
+  --color-accent-deep: #1d4ed8;
+  --color-glow: #7dd3fc;
+  /* Warm complement to sky blue — stats, “live”, Jev success states */
+  --color-lime: #fde047;
 }
 
 html {
@@ -22,8 +23,8 @@ html {
 body {
   @apply bg-ink-950 font-sans text-zinc-200 antialiased;
   background-image:
-    radial-gradient(60rem 40rem at 85% -10%, rgb(164 6 72 / 0.35), transparent 60%),
-    radial-gradient(50rem 30rem at -10% 20%, rgb(80 40 160 / 0.18), transparent 60%);
+    radial-gradient(60rem 40rem at 85% -10%, rgb(29 78 216 / 0.22), transparent 60%),
+    radial-gradient(50rem 30rem at -10% 20%, rgb(14 165 233 / 0.12), transparent 60%);
   background-attachment: fixed;
   min-height: 100vh;
 }
@@ -57,7 +58,22 @@ body::before {
 }
 
 .shimmer {
-  background: linear-gradient(90deg, transparent, rgb(255 61 139 / 0.9), transparent);
+  background: linear-gradient(90deg, transparent, rgb(56 189 248 / 0.9), transparent);
   background-size: 200% 100%;
   animation: shimmer 1.2s linear infinite;
+}
+
+/* Display titles — aligned with newtricks.ai / abbot draft site */
+.title-display {
+  @apply font-display font-normal uppercase tracking-wide;
+}
+
+.editorial-glow {
+  text-shadow:
+    0 0 24px rgb(56 189 248 / 0.35),
+    0 0 48px rgb(29 78 216 / 0.2);
+}
+
+.title-accent {
+  @apply text-glow;
 }

@@ -103,8 +103,8 @@ export default function SmartTable() {
             <span className="text-zinc-700">/</span>
             <span className="text-accent">Experiment 02</span>
           </p>
-          <h1 className="mt-3 font-display text-6xl leading-[0.9] text-white sm:text-7xl">
-            Self-aware <em className="text-glow">Tables</em>
+          <h1 className="title-display editorial-glow mt-3 text-6xl leading-[0.9] text-white sm:text-7xl">
+            Self-aware <span className="title-accent">Tables</span>
           </h1>
           <p className="mt-3 max-w-2xl text-zinc-400">
             Filter and sort by attributes the table doesn't have. Type <Kbd>funny and gory</Kbd> to filter, or add a column

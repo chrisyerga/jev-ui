@@ -21,7 +21,7 @@ export function BriefBox({ value, onChange, onPrefill, busy, note }: Props) {
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
           <p className="font-mono text-[10px] tracking-[0.25em] text-zinc-500 uppercase">Step 0 · optional</p>
-          <h2 className="font-display text-3xl text-white">Describe your campaign</h2>
+          <h2 className="title-display text-3xl text-white">Describe your campaign</h2>
         </div>
         <p className="max-w-sm text-xs text-zinc-500">
           Jev asks one yes/no question per place and per segment, plus two gates: does the brief imply a geography? an

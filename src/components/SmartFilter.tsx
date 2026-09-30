@@ -92,7 +92,7 @@ export function SmartFilter(props: Props) {
           </div>
           <div>
             <p className="font-mono text-[10px] tracking-[0.25em] text-zinc-500 uppercase">{props.eyebrow}</p>
-            <h2 className="font-display text-3xl leading-none text-white">{props.title}</h2>
+            <h2 className="title-display text-3xl leading-none text-white">{props.title}</h2>
           </div>
         </div>
         <span className="rounded-full border border-white/10 px-3 py-1 font-mono text-xs text-zinc-400">

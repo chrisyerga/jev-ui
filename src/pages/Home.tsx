@@ -21,8 +21,8 @@ export default function Home() {
         <p className="flex items-center gap-2 font-mono text-[11px] tracking-[0.3em] text-accent uppercase">
           <span className="size-1.5 rounded-full bg-accent" /> Jev UI Playground
         </p>
-        <h1 className="mt-4 max-w-4xl font-display text-6xl leading-[0.92] text-white sm:text-8xl">
-          What if controls <em className="text-glow">understood</em> what they hold?
+        <h1 className="title-display editorial-glow mt-4 max-w-4xl text-6xl leading-[0.9] text-white sm:text-8xl">
+          What if controls <span className="title-accent">understood</span> what they hold?
         </h1>
         <p className="mt-6 max-w-2xl text-lg leading-relaxed text-zinc-400">
           Jev is fast and cheap per request, so a UI control can call AI on every keystroke and still feel responsive
@@ -60,7 +60,7 @@ export default function Home() {
       <section className="mt-20 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div>
           <SectionLabel>The thought experiment</SectionLabel>
-          <blockquote className="mt-5 font-display text-4xl leading-tight text-white sm:text-5xl">
+          <blockquote className="mt-5 text-2xl font-semibold leading-snug text-white sm:text-3xl">
             “What if the controls themselves were semantically aware and had intelligence?”
           </blockquote>
           <p className="mt-6 max-w-xl leading-relaxed text-zinc-400">
@@ -111,8 +111,8 @@ function ExampleCard({ example }: { example: Example }) {
           </span>
         )}
       </div>
-      <h3 className="mt-6 font-display text-4xl leading-none text-white">
-        {example.title} {example.titleAccent && <em className="text-glow">{example.titleAccent}</em>}
+      <h3 className="title-display mt-6 text-4xl leading-none text-white">
+        {example.title} {example.titleAccent && <span className="title-accent">{example.titleAccent}</span>}
       </h3>
       <p className="mt-3 flex-1 text-sm leading-relaxed text-zinc-400">{example.summary}</p>
       <ul className="mt-5 flex flex-wrap gap-1.5">

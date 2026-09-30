@@ -38,7 +38,7 @@ export function SummaryPanel({ selected, suggested, fit, onRemove, onClear, chil
           key={formatReach(reach)}
           initial={{ opacity: 0.4, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
-          className="font-display text-6xl leading-none text-white"
+          className="title-display text-6xl leading-none text-white"
         >
           {formatReach(reach)}
         </motion.p>

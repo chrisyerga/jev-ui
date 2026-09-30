@@ -116,8 +116,8 @@ export default function TargetingLab() {
             <span className="text-zinc-700">/</span>
             <span className="text-accent">Experiment 01</span>
           </p>
-          <h1 className="mt-3 font-display text-6xl leading-[0.9] text-white sm:text-7xl">
-            Targeting <em className="text-glow">Lab</em>
+          <h1 className="title-display editorial-glow mt-3 text-6xl leading-[0.9] text-white sm:text-7xl">
+            Targeting <span className="title-accent">Lab</span>
           </h1>
           <p className="mt-3 max-w-xl text-zinc-400">
             Filter boxes that understand intent. Type <Kbd>coastal</Kbd> or <Kbd>about to retire</Kbd> and Jev judges
