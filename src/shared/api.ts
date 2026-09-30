@@ -1,9 +1,10 @@
-export type FilterKind = "geo" | "demo";
+export type FilterKind = "geo" | "demo" | "movies";
 
 export const LIMITS = {
   queryChars: 120,
   briefChars: 1000,
   fitSelections: 60,
+  attributeChars: 80,
 } as const;
 
 export interface JevCallDebug {
@@ -61,6 +62,23 @@ export interface FitResult {
 }
 
 export interface FitResponse {
+  results: Record<string, FitResult>;
+  debug: JevCallDebug;
+}
+
+export const COLUMN_LEVELS = [
+  "Not at all: `attribute` does not describe this movie",
+  "Slightly: a little, or only in parts",
+  "Clearly: a fair description of this movie",
+  "Extremely: one of the strongest examples of `attribute`",
+] as const;
+
+export interface ColumnRequest {
+  attribute: string;
+}
+
+export interface ColumnResponse {
+  /** Probability-weighted level per movie id, 0 (not at all) to 3 (extremely). */
   results: Record<string, FitResult>;
   debug: JevCallDebug;
 }

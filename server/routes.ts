@@ -2,11 +2,15 @@ import { noul, score, type NoulQuestion } from "@typesafe-ai/sdk";
 import { Hono } from "hono";
 import { DEMO_BY_ID, DEMO_ITEMS } from "../src/data/demographics.js";
 import { GEO_BY_ID, GEO_ITEMS } from "../src/data/geo.js";
+import { MOVIES } from "../src/data/movies.js";
 import {
+  COLUMN_LEVELS,
   FIT_LEVELS,
   LIMITS,
   type BriefRequest,
   type BriefResponse,
+  type ColumnRequest,
+  type ColumnResponse,
   type FilterKind,
   type FilterRequest,
   type FilterResponse,
@@ -32,34 +36,62 @@ function nouls(result: JudgeResult) {
   );
 }
 
+function scoresOf(result: JudgeResult) {
+  return Object.fromEntries(
+    Object.entries(result.byId).map(([id, a]) => [
+      id,
+      a.type === "score" ? { score: a.score, confidence: a.confidence } : { score: 0, confidence: 0 },
+    ]),
+  );
+}
+
 function noulOf(a: Answer | undefined) {
   return a?.type === "noul" ? a.noul : 0;
 }
 
 const GEO_CANDIDATES = GEO_ITEMS.map((g) => ({ id: g.id, label: g.label }));
 const DEMO_CANDIDATES = DEMO_ITEMS.map((d) => ({ id: d.id, label: d.label }));
+const MOVIE_CANDIDATES = MOVIES.map((m) => ({ id: m.id, label: m.label }));
+
+const CANDIDATES: Record<FilterKind, { id: string; label: string }[]> = {
+  geo: GEO_CANDIDATES,
+  demo: DEMO_CANDIDATES,
+  movies: MOVIE_CANDIDATES,
+};
 
 const FILTER_CONTEXT: Record<FilterKind, string> = {
   geo: "A marketer typed `filter` into the search box of an ad-targeting tool to find US locations.",
   demo: "A marketer typed `filter` into the search box of an ad-targeting tool to find audience segments that reach a kind of person.",
+  movies: "A viewer typed `filter` into the search box above a table of movies on a streaming service.",
 };
 
 function filterQuestion(kind: FilterKind, label: string): NoulQuestion {
-  return kind === "geo"
-    ? noul(
+  switch (kind) {
+    case "geo":
+      return noul(
         { place: label, question: "Does `place` match what `filter` describes?" },
         {
           true: "`place` is named by `filter`, or clearly has the quality, geography, culture, or reputation that `filter` describes",
           false: "`place` does not have what `filter` describes, or only weakly",
         },
-      )
-    : noul(
+      );
+    case "demo":
+      return noul(
         { segment: label, question: "Is `segment` a strong way to reach the people described by `filter`?" },
         {
           true: "People described by `filter` are very likely to be in `segment`, or `segment` is named by `filter`",
           false: "`segment` has little or no association with the people described by `filter`",
         },
       );
+    case "movies":
+      return noul(
+        { movie: label, question: "Does `movie` match what the viewer is looking for in `filter`?" },
+        {
+          true: "`movie` clearly has the qualities, setting, people, or title that `filter` describes",
+          false: "`movie` does not fit `filter`, or only weakly",
+        },
+      );
+  }
 }
 
 function briefQuestion(kind: FilterKind, label: string): NoulQuestion {
@@ -84,13 +116,13 @@ export const api = new Hono()
   .post("/filter", async (c) => {
     const body = await c.req.json<Partial<FilterRequest>>();
     const query = typeof body.query === "string" ? body.query.trim() : "";
-    const kind: FilterKind | undefined = body.kind === "geo" || body.kind === "demo" ? body.kind : undefined;
-    if (!kind || !query) return c.json({ error: "Expected { kind: 'geo' | 'demo', query }" }, 400);
+    const kind = typeof body.kind === "string" && body.kind in CANDIDATES ? body.kind : undefined;
+    if (!kind || !query) return c.json({ error: "Expected { kind: 'geo' | 'demo' | 'movies', query }" }, 400);
     if (query.length > LIMITS.queryChars) return c.json({ error: `Query is limited to ${LIMITS.queryChars} characters` }, 400);
 
     const response = await cached<FilterResponse>(`filter:${kind}:${query.toLowerCase()}`, async () => {
       const result = await judgeCandidates({
-        items: kind === "geo" ? GEO_CANDIDATES : DEMO_CANDIDATES,
+        items: CANDIDATES[kind],
         state: { context: FILTER_CONTEXT[kind], filter: query },
         buildQuestion: (label) => filterQuestion(kind, label),
       });
@@ -168,13 +200,29 @@ export const api = new Hono()
             FIT_LEVELS,
           ),
       });
-      const results = Object.fromEntries(
-        Object.entries(result.byId).map(([id, a]) => [
-          id,
-          a.type === "score" ? { score: a.score, confidence: a.confidence } : { score: 0, confidence: 0 },
-        ]),
-      );
-      return { results, debug: result.debug };
+      return { results: scoresOf(result), debug: result.debug };
+    });
+    return c.json(response);
+  })
+  .post("/column", async (c) => {
+    const body = await c.req.json<Partial<ColumnRequest>>();
+    const attribute = typeof body.attribute === "string" ? body.attribute.trim() : "";
+    if (!attribute) return c.json({ error: "Expected { attribute }" }, 400);
+    if (attribute.length > LIMITS.attributeChars) {
+      return c.json({ error: `Column names are limited to ${LIMITS.attributeChars} characters` }, 400);
+    }
+
+    const response = await cached<ColumnResponse>(`column:${attribute.toLowerCase()}`, async () => {
+      const result = await judgeCandidates({
+        items: MOVIE_CANDIDATES,
+        state: {
+          context: "A viewer added a column named `attribute` to a table of movies, to rate every movie on it.",
+          attribute,
+        },
+        buildQuestion: (label) =>
+          score({ movie: label, question: "How well does `attribute` describe `movie`?" }, COLUMN_LEVELS),
+      });
+      return { results: scoresOf(result), debug: result.debug };
     });
     return c.json(response);
   });

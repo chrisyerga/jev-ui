@@ -23,8 +23,9 @@ export const EXAMPLES: Example[] = [
     title: "Self-aware",
     titleAccent: "Tables",
     summary:
-      "Column filters that understand the column's data, such as “rows that look like test accounts”, and sort orders chosen by meaning, such as “most urgent first”.",
-    concepts: ["Semantic filters", "Meaningful sort"],
+      "A table of 347 movies that you can filter and sort by attributes it doesn't have. Filter by “funny and gory” or “set in tokyo”, or add a column like “how scary” and Jev rates every row.",
+    concepts: ["Semantic row filter", "Jev-computed columns", "Sort by meaning"],
+    path: "/tables",
   },
   {
     number: "03",

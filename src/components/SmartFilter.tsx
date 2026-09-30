@@ -261,7 +261,7 @@ function ResultRow(props: { row: Row; checked: boolean; suggested: boolean; anim
   );
 }
 
-function JevStatus({ state, cached }: { state: string; cached: boolean }) {
+export function JevStatus({ state, cached }: { state: string; cached: boolean }) {
   if (state === "idle") return null;
   const label = state === "loading" ? "thinking" : state === "error" ? "error" : cached ? "cached" : "jev";
   return (
@@ -276,7 +276,7 @@ function JevStatus({ state, cached }: { state: string; cached: boolean }) {
   );
 }
 
-function SearchIcon() {
+export function SearchIcon() {
   return (
     <svg
       viewBox="0 0 20 20"

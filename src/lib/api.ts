@@ -1,6 +1,8 @@
 import type {
   BriefRequest,
   BriefResponse,
+  ColumnRequest,
+  ColumnResponse,
   FilterRequest,
   FilterResponse,
   FitRequest,
@@ -34,4 +36,5 @@ export const api = {
   filter: (body: FilterRequest, signal?: AbortSignal) => post<FilterResponse>("/api/filter", body, signal),
   brief: (body: BriefRequest, signal?: AbortSignal) => post<BriefResponse>("/api/brief", body, signal),
   fit: (body: FitRequest, signal?: AbortSignal) => post<FitResponse>("/api/fit", body, signal),
+  column: (body: ColumnRequest, signal?: AbortSignal) => post<ColumnResponse>("/api/column", body, signal),
 };
