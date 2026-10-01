@@ -21,24 +21,21 @@ export default function Home() {
         <p className="flex items-center gap-2 font-mono text-[11px] tracking-[0.3em] text-accent uppercase">
           <span className="size-1.5 rounded-full bg-accent" /> Jev UI Playground
         </p>
-        <h1 className="title-display editorial-glow mt-4 max-w-4xl text-6xl leading-[0.9] text-white sm:text-8xl">
-          What if controls <span className="title-accent">understood</span> what they hold?
+        <h1 className="title-display editorial-glow mt-4 max-w-4xl pb-8 text-6xl leading-[0.9] text-white sm:text-8xl">
+          UI components that <span className="title-accent">understand</span> their data
         </h1>
-        <p className="mt-6 max-w-2xl text-lg leading-relaxed text-zinc-400">
-          Jev is fast and cheap per request, so a UI control can call AI on every keystroke and still feel responsive
-          and cost almost nothing. Much of the intelligence we used to write into UI code can move out of the source and
-          into calls to Jev. This playground collects experiments in that direction.
+
+        <SectionLabel>Speed is a feature</SectionLabel>
+        <p className="mt-1 mb-4 max-w-2xl text-lg leading-tight text-zinc-400">
+          Latency of ~200ms vs multiple seconds means the controls can call AI at their discretion, not the user's.
+        </p>
+
+        <SectionLabel>Semantic awareness</SectionLabel>
+        <p className="mt-1 max-w-2xl text-lg leading-tight text-zinc-400">
+          Data isn't just opaque bytes to be rendered. What if operations like "sort by" and "filter by" were informed by world knowledge
+          rather than string comparisons?
         </p>
       </header>
-
-      <section className="mt-12 grid gap-4 sm:grid-cols-3">
-        {STATS.map((s) => (
-          <div key={s.value} className="card p-5">
-            <p className="font-mono text-2xl text-lime">{s.value}</p>
-            <p className="mt-2 text-sm text-zinc-400">{s.label}</p>
-          </div>
-        ))}
-      </section>
 
       <section className="mt-16">
         <SectionLabel>Examples</SectionLabel>
@@ -56,6 +53,15 @@ export default function Home() {
           ))}
         </div>
       </section>
+      <section className="mt-12 grid gap-4 sm:grid-cols-3">
+        {STATS.map((s) => (
+          <div key={s.value} className="card p-5">
+            <p className="font-mono text-2xl text-lime">{s.value}</p>
+            <p className="mt-2 text-sm text-zinc-400">{s.label}</p>
+          </div>
+        ))}
+      </section>
+
 
       <section className="mt-20 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div>
@@ -93,7 +99,7 @@ export default function Home() {
 }
 
 function SectionLabel({ children }: { children: string }) {
-  return <h2 className="font-mono text-[11px] tracking-[0.3em] text-zinc-500 uppercase">{children}</h2>;
+  return <h2 className="font-mono text-[15px] tracking-[0.3em] text-zinc-100 leading-relaxed uppercase">{children}</h2>;
 }
 
 function ExampleCard({ example }: { example: Example }) {
