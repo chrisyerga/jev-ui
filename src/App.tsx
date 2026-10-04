@@ -8,8 +8,8 @@ import TargetingLab from "./pages/TargetingLab";
 const ROUTES: Record<string, { title: string; Page: ComponentType }> = {
   "/": { title: "Jev UI Playground", Page: Home },
   "/targeting": { title: "Targeting Lab · Jev UI Playground", Page: TargetingLab },
-  "/tables": { title: "Self-aware Tables · Jev UI Playground", Page: SmartTable },
-  "/forms": { title: "Forms that Cross-check · Jev UI Playground", Page: CrossCheckForms },
+  "/tables": { title: "Data-aware Tables · Jev UI Playground", Page: SmartTable },
+  "/forms": { title: "Forms that Auto-validate · Jev UI Playground", Page: CrossCheckForms },
 };
 
 export default function App() {

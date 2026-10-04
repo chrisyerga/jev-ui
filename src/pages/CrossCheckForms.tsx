@@ -66,10 +66,10 @@ export default function CrossCheckForms() {
               ← Jev UI Playground
             </Link>
             <span className="text-zinc-700">/</span>
-            <span className="text-accent">Experiment 03</span>
+            <span className="text-accent">Experiment 02</span>
           </p>
           <h1 className="title-display editorial-glow mt-3 text-6xl leading-[0.9] text-white sm:text-7xl">
-            Forms that <span className="title-accent">Cross-check</span>
+            Forms that <span className="title-accent">Auto-validate</span>
           </h1>
           <p className="mt-3 max-w-2xl text-zinc-400">
             Every field is checked against every other, with no validation rules written for either form. Jev reads the whole

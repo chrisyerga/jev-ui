@@ -114,7 +114,7 @@ export default function TargetingLab() {
               ← Jev UI Playground
             </Link>
             <span className="text-zinc-700">/</span>
-            <span className="text-accent">Experiment 01</span>
+            <span className="text-accent">Experiment 03</span>
           </p>
           <h1 className="title-display editorial-glow mt-3 text-6xl leading-[0.9] text-white sm:text-7xl">
             Targeting <span className="title-accent">Lab</span>
