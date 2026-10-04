@@ -2,42 +2,94 @@ import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Inspector } from "../components/Inspector";
 import { JevStatus, SearchIcon } from "../components/SmartFilter";
 import { ThresholdSlider } from "../components/ThresholdSlider";
-import { MOVIES, type Movie } from "../data/movies";
+import type { LogLevel } from "../data/logs";
+import { TABLE_DATASET_CONFIGS, type TableColumn, type TableDatasetConfig, type TableRow } from "../data/tableDatasets";
 import { Link } from "../lib/router";
 import { columnKey, useJevColumns, type JevColumnState } from "../lib/useJevColumns";
 import { useJevFilter } from "../lib/useJevFilter";
-import { COLUMN_LEVELS, LIMITS, type FitResult } from "../shared/api";
+import { COLUMN_LEVEL_NAMES, LIMITS, TABLE_DATASETS, type FitResult, type TableDataset } from "../shared/api";
 
-const FILTER_EXAMPLES = ["star", "tarantino", "funny and gory", "set in tokyo", "will make me cry", "heist"];
-const COLUMN_EXAMPLES = ["how scary", "how funny", "date-night friendly", "OK for a 10-year-old", "has a twist ending", "visually stunning"];
 const MAX_COLUMNS = 4;
 const NEAR_MISS_BAND = 0.25;
-const LEVEL_NAMES = COLUMN_LEVELS.map((l) => l.split(":")[0] ?? l);
 
-type FixedKey = "title" | "year" | "genre" | "director" | "relevance";
-type SortKey = FixedKey | `col:${string}`;
+type SortKey = string;
 type Sort = { key: SortKey | "auto"; dir: 1 | -1 };
 
 interface Row {
-  movie: Movie;
+  row: TableRow;
   textMatch: boolean;
   score?: number;
   nearMiss: boolean;
 }
 
-const TEXT_OF = new Map(MOVIES.map((m) => [m.id, `${m.title} ${m.year} ${m.genre} ${m.director}`.toLowerCase()]));
-
 export default function SmartTable() {
-  const [query, setQuery] = useState("");
+  const [dataset, setDataset] = useState<TableDataset>("movies");
   const [threshold, setThreshold] = useState(0.5);
+  const config = TABLE_DATASET_CONFIGS[dataset];
+
+  return (
+    <div className="relative z-10 mx-auto max-w-7xl px-4 pt-10 pb-28 sm:px-6">
+      <header className="flex flex-wrap items-end justify-between gap-6">
+        <div>
+          <p className="flex items-center gap-2 font-mono text-[11px] tracking-[0.3em] uppercase">
+            <Link to="/" className="text-zinc-500 transition hover:text-white">
+              ← Jev UI Playground
+            </Link>
+            <span className="text-zinc-700">/</span>
+            <span className="text-accent">Experiment 02</span>
+          </p>
+          <h1 className="title-display editorial-glow mt-3 text-6xl leading-[0.9] text-white sm:text-7xl">
+            Self-aware <span className="title-accent">Tables</span>
+          </h1>
+          <p className="mt-3 max-w-2xl text-zinc-400">
+            Filter and sort by attributes the table doesn't have. Type <Kbd>{config.intro.filter}</Kbd> to filter, or add a
+            column like <Kbd>{config.intro.column}</Kbd>. {config.intro.stores}
+          </p>
+          <div className="mt-5 inline-flex rounded-xl border border-white/10 bg-ink-950/60 p-1" role="tablist" aria-label="Dataset">
+            {TABLE_DATASETS.map((id) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={id === dataset}
+                onClick={() => setDataset(id)}
+                className={`rounded-lg px-4 py-1.5 text-sm font-medium transition ${
+                  id === dataset ? "bg-accent text-ink-950" : "text-zinc-400 hover:text-white"
+                }`}
+              >
+                {TABLE_DATASET_CONFIGS[id].label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <ThresholdSlider value={threshold} onChange={setThreshold} />
+      </header>
+
+      <TableWorkspace key={dataset} config={config} threshold={threshold} />
+
+      <footer className="mt-12 text-center text-xs text-zinc-600">
+        Powered by Jev from{" "}
+        <a href="https://typesafe.ai" className="text-zinc-400 hover:text-white">
+          TypeSafe
+        </a>{" "}
+        · {config.jevSees}
+      </footer>
+
+      <Inspector />
+    </div>
+  );
+}
+
+function TableWorkspace({ config, threshold }: { config: TableDatasetConfig; threshold: number }) {
+  const [query, setQuery] = useState("");
   const [showNearMisses, setShowNearMisses] = useState(false);
   const [columns, setColumns] = useState<string[]>([]);
   const [draft, setDraft] = useState("");
   const [sort, setSort] = useState<Sort>({ key: "auto", dir: 1 });
 
   const q = query.trim().toLowerCase();
-  const jev = useJevFilter("movies", query);
-  const columnStates = useJevColumns(columns);
+  const jev = useJevFilter(config.id, query);
+  const columnStates = useJevColumns(config.id, columns);
   const scores = jev.status === "done" ? jev.scores : undefined;
 
   const { rows, textMatches, jevMatches, nearMissCount } = useMemo(() => {
@@ -45,29 +97,29 @@ export default function SmartTable() {
     let semantic = 0;
     let near = 0;
     const out: Row[] = [];
-    for (const movie of MOVIES) {
+    for (const row of config.rows) {
       if (!q) {
-        out.push({ movie, textMatch: false, nearMiss: false });
+        out.push({ row, textMatch: false, nearMiss: false });
         continue;
       }
-      const textMatch = TEXT_OF.get(movie.id)?.includes(q) ?? false;
-      const score = scores?.[movie.id];
+      const textMatch = row.text.includes(q);
+      const score = scores?.[row.id];
       const jevMatch = score !== undefined && score >= threshold;
       const nearMiss = !textMatch && !jevMatch && score !== undefined && score >= threshold - NEAR_MISS_BAND;
       if (textMatch) text += 1;
       else if (jevMatch) semantic += 1;
       if (nearMiss) near += 1;
-      if (textMatch || jevMatch || (nearMiss && showNearMisses)) out.push({ movie, textMatch, score, nearMiss });
+      if (textMatch || jevMatch || (nearMiss && showNearMisses)) out.push({ row, textMatch, score, nearMiss });
     }
     return { rows: out, textMatches: text, jevMatches: semantic, nearMissCount: near };
-  }, [q, scores, threshold, showNearMisses]);
+  }, [config.rows, q, scores, threshold, showNearMisses]);
 
-  const effectiveSort: Sort = sort.key === "auto" ? (q ? { key: "relevance", dir: -1 } : { key: "title", dir: 1 }) : sort;
-
-  const sortedRows = sortRows(rows, effectiveSort, columnStates);
+  const effectiveSort: Sort = sort.key === "auto" ? (q ? { key: "relevance", dir: -1 } : config.defaultSort) : sort;
+  const sortedRows = sortRows(rows, effectiveSort, columnStates, config);
+  const fixedColumns = [...config.lead, ...config.trail];
 
   function toggleSort(key: SortKey) {
-    const numeric = key === "year" || key === "relevance" || key.startsWith("col:");
+    const numeric = key === "relevance" || key.startsWith("col:") || fixedColumns.some((c) => c.key === key && (c.numeric || c.sortValue));
     setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: numeric ? -1 : 1 }));
   }
 
@@ -92,36 +144,27 @@ export default function SmartTable() {
     addColumn(draft);
   }
 
-  return (
-    <div className="relative z-10 mx-auto max-w-7xl px-4 pt-10 pb-28 sm:px-6">
-      <header className="flex flex-wrap items-end justify-between gap-6">
-        <div>
-          <p className="flex items-center gap-2 font-mono text-[11px] tracking-[0.3em] uppercase">
-            <Link to="/" className="text-zinc-500 transition hover:text-white">
-              ← Jev UI Playground
-            </Link>
-            <span className="text-zinc-700">/</span>
-            <span className="text-accent">Experiment 02</span>
-          </p>
-          <h1 className="title-display editorial-glow mt-3 text-6xl leading-[0.9] text-white sm:text-7xl">
-            Self-aware <span className="title-accent">Tables</span>
-          </h1>
-          <p className="mt-3 max-w-2xl text-zinc-400">
-            Filter and sort by attributes the table doesn't have. Type <Kbd>funny and gory</Kbd> to filter, or add a column
-            like <Kbd>how scary</Kbd>. The table stores only title, year, genre and director; Jev knows the rest.
-          </p>
-        </div>
-        <ThresholdSlider value={threshold} onChange={setThreshold} />
-      </header>
+  const fixedTh = (col: TableColumn, i: number, edge?: "first" | "last") => (
+    <Th
+      key={col.key}
+      label={col.label}
+      sortKey={col.key}
+      sort={effectiveSort}
+      onSort={toggleSort}
+      className={`${col.className ?? ""} ${edge === "first" && i === 0 ? "pl-6" : ""} ${edge === "last" ? "pr-6" : ""}`}
+    />
+  );
 
+  return (
+    <>
       <div className="mt-8 grid gap-4 lg:grid-cols-2">
-        <ControlCard eyebrow="Filter rows" hint="Text matches show instantly; Jev judges every movie after you pause.">
+        <ControlCard eyebrow="Filter rows" hint={`Text matches show instantly; Jev judges all ${config.rows.length} ${config.noun} after you pause.`}>
           <div className="group relative">
             <SearchIcon />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Try “star”, “funny and gory”, “set in tokyo”…"
+              placeholder={config.filterPlaceholder}
               maxLength={LIMITS.queryChars}
               className={`${INPUT} pr-24 pl-11`}
             />
@@ -135,15 +178,15 @@ export default function SmartTable() {
             </div>
             {jev.status === "loading" && <div className="shimmer absolute right-6 bottom-0 left-6 h-px" />}
           </div>
-          <Chips items={FILTER_EXAMPLES} active={(ex) => q === ex} onPick={setQuery} />
+          <Chips items={config.filterExamples} active={(ex) => q === ex} onPick={setQuery} />
         </ControlCard>
 
-        <ControlCard eyebrow="Add a column" hint={`Jev rates every movie on it, 0 to 3. Up to ${MAX_COLUMNS} columns.`}>
+        <ControlCard eyebrow="Add a column" hint={`Jev rates every row on it, 0 to 3. Up to ${MAX_COLUMNS} columns.`}>
           <form onSubmit={onSubmitColumn} className="flex gap-2">
             <input
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder="Any quality: “how scary”, “good for a rainy day”…"
+              placeholder={config.columnPlaceholder}
               maxLength={LIMITS.attributeChars}
               className={`${INPUT} flex-1 px-4`}
             />
@@ -156,7 +199,7 @@ export default function SmartTable() {
             </button>
           </form>
           <Chips
-            items={COLUMN_EXAMPLES}
+            items={config.columnExamples}
             active={(ex) => columns.some((c) => columnKey(c) === columnKey(ex))}
             onPick={addColumn}
           />
@@ -167,12 +210,12 @@ export default function SmartTable() {
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 px-6 py-3 text-xs text-zinc-500">
           <span>
             <span className="font-mono text-zinc-300">{sortedRows.filter((r) => !r.nearMiss).length}</span> of{" "}
-            <span className="font-mono text-zinc-300">{MOVIES.length}</span> movies
+            <span className="font-mono text-zinc-300">{config.rows.length}</span> {config.noun}
             {q && (
               <>
                 {" · "}
                 {textMatches} text match{textMatches === 1 ? "" : "es"}
-                {jev.status === "loading" && " · Jev is judging every movie…"}
+                {jev.status === "loading" && ` · Jev is judging all ${config.noun}…`}
                 {jev.status === "error" && <span className="text-red-400"> · {jev.error}</span>}
                 {jev.status === "done" && ` · ${jevMatches} more from Jev at ≥ ${Math.round(threshold * 100)}%`}
                 {nearMissCount > 0 && (
@@ -190,8 +233,7 @@ export default function SmartTable() {
           <table className="w-full min-w-[56rem] border-separate border-spacing-0 text-left text-sm">
             <thead className="sticky top-0 z-10 bg-ink-900/95 backdrop-blur">
               <tr>
-                <Th label="Title" sortKey="title" sort={effectiveSort} onSort={toggleSort} className="pl-6" />
-                <Th label="Year" sortKey="year" sort={effectiveSort} onSort={toggleSort} className="w-20" />
+                {config.lead.map((col, i) => fixedTh(col, i, "first"))}
                 {q && <Th label="Match" sortKey="relevance" sort={effectiveSort} onSort={toggleSort} className="w-36" />}
                 {columns.map((attribute) => (
                   <Th
@@ -205,30 +247,35 @@ export default function SmartTable() {
                     className="w-40"
                   />
                 ))}
-                <Th label="Genre" sortKey="genre" sort={effectiveSort} onSort={toggleSort} className="w-28" />
-                <Th label="Director" sortKey="director" sort={effectiveSort} onSort={toggleSort} className="pr-6" />
+                {config.trail.map((col, i) => fixedTh(col, i, i === config.trail.length - 1 ? "last" : undefined))}
               </tr>
             </thead>
             <tbody>
-              {sortedRows.map((row) => (
-                <tr key={row.movie.id} className={`transition hover:bg-white/[0.03] ${row.nearMiss ? "opacity-45" : ""}`}>
-                  <Td className="min-w-48 pl-6 text-zinc-100">{row.movie.title}</Td>
-                  <Td className="font-mono text-xs text-zinc-400">{row.movie.year}</Td>
+              {sortedRows.map((r) => (
+                <tr key={r.row.id} className={`transition hover:bg-white/[0.03] ${r.nearMiss ? "opacity-45" : ""}`}>
+                  {config.lead.map((col, i) => (
+                    <Td key={col.key} className={i === 0 ? "pl-6" : ""}>
+                      <Cell kind={col.cell} value={r.row.values[col.key]} />
+                    </Td>
+                  ))}
                   {q && (
                     <Td>
-                      <MatchCell row={row} />
+                      <MatchCell row={r} />
                     </Td>
                   )}
                   {columns.map((attribute) => {
                     const state = columnStates[columnKey(attribute)];
                     return (
                       <Td key={columnKey(attribute)}>
-                        <ColumnCell state={state} result={state?.status === "done" ? state.results[row.movie.id] : undefined} />
+                        <ColumnCell state={state} result={state?.status === "done" ? state.results[r.row.id] : undefined} />
                       </Td>
                     );
                   })}
-                  <Td className="whitespace-nowrap text-zinc-400">{row.movie.genre}</Td>
-                  <Td className="whitespace-nowrap pr-6 text-zinc-400">{row.movie.director}</Td>
+                  {config.trail.map((col, i) => (
+                    <Td key={col.key} className={i === config.trail.length - 1 ? "pr-6" : ""}>
+                      <Cell kind={col.cell} value={r.row.values[col.key]} />
+                    </Td>
+                  ))}
                 </tr>
               ))}
             </tbody>
@@ -238,39 +285,58 @@ export default function SmartTable() {
           )}
         </div>
       </section>
-
-      <footer className="mt-12 text-center text-xs text-zinc-600">
-        Powered by Jev from{" "}
-        <a href="https://typesafe.ai" className="text-zinc-400 hover:text-white">
-          TypeSafe
-        </a>{" "}
-        · Jev sees only “Title (Year)” for each movie
-      </footer>
-
-      <Inspector />
-    </div>
+    </>
   );
 }
 
-function sortRows(rows: Row[], { key, dir }: Sort, columnStates: Record<string, JevColumnState>) {
-  const valueOf = (row: Row): string | number => {
-    if (key === "relevance") return (row.textMatch ? 1 : 0) + (row.score ?? 0);
+function sortRows(rows: Row[], { key, dir }: Sort, columnStates: Record<string, JevColumnState>, config: TableDatasetConfig) {
+  const column = [...config.lead, ...config.trail].find((c) => c.key === key);
+  const valueOf = (r: Row): string | number => {
+    if (key === "relevance") return (r.textMatch ? 1 : 0) + (r.score ?? 0);
     if (key.startsWith("col:")) {
       const state = columnStates[key.slice(4)];
-      return state?.status === "done" ? (state.results[row.movie.id]?.score ?? -1) : -1;
+      return state?.status === "done" ? (state.results[r.row.id]?.score ?? -1) : -1;
     }
-    return row.movie[key as Exclude<FixedKey, "relevance">];
+    const value = r.row.values[key] ?? "";
+    return column?.sortValue ? column.sortValue(value) : value;
   };
+  const tiebreak = (r: Row) => String(r.row.values[config.tiebreak] ?? "");
   return [...rows].sort((a, b) => {
     const va = valueOf(a);
     const vb = valueOf(b);
     const cmp = typeof va === "number" && typeof vb === "number" ? va - vb : String(va).localeCompare(String(vb));
-    return cmp * dir || a.movie.title.localeCompare(b.movie.title);
+    return cmp * dir || tiebreak(a).localeCompare(tiebreak(b)) || a.row.id.localeCompare(b.row.id);
   });
 }
 
 const INPUT =
   "w-full rounded-2xl border border-white/10 bg-ink-950/70 py-3.5 text-[15px] text-white placeholder:text-zinc-600 focus:border-accent/60 focus:ring-4 focus:ring-accent/15 focus:outline-none";
+
+const LEVEL_BADGE: Record<LogLevel, string> = {
+  ERROR: "border-red-400/40 bg-red-500/15 text-red-300",
+  WARN: "border-lime/40 bg-lime/10 text-lime",
+  INFO: "border-white/10 bg-white/5 text-zinc-300",
+  DEBUG: "border-white/5 text-zinc-600",
+};
+
+function Cell({ kind, value }: { kind: TableColumn["cell"]; value: string | number | undefined }) {
+  switch (kind) {
+    case "title":
+      return <span className="text-zinc-100">{value}</span>;
+    case "mono":
+      return <span className="whitespace-nowrap font-mono text-xs text-zinc-400">{value}</span>;
+    case "muted":
+      return <span className="whitespace-nowrap text-zinc-400">{value}</span>;
+    case "level":
+      return (
+        <span className={`rounded border px-1.5 py-0.5 font-mono text-[10px] tracking-wider ${LEVEL_BADGE[value as LogLevel] ?? LEVEL_BADGE.INFO}`}>
+          {value}
+        </span>
+      );
+    case "message":
+      return <span className="font-mono text-xs break-words text-zinc-200">{value}</span>;
+  }
+}
 
 function ControlCard({ eyebrow, hint, children }: { eyebrow: string; hint: string; children: ReactNode }) {
   return (
@@ -339,7 +405,7 @@ function Th(props: {
 }
 
 function Td({ children, className }: { children: ReactNode; className?: string }) {
-  return <td className={`border-b border-white/5 px-3 py-2.5 ${className ?? ""}`}>{children}</td>;
+  return <td className={`border-b border-white/5 px-3 py-2.5 align-top ${className ?? ""}`}>{children}</td>;
 }
 
 function MatchCell({ row }: { row: Row }) {
@@ -361,7 +427,7 @@ function ColumnCell({ state, result }: { state: JevColumnState | undefined; resu
   if (!state || state.status === "loading") return <span className="block h-1.5 w-full animate-pulse rounded-full bg-white/5" />;
   if (state.status === "error") return <span className="text-xs text-red-400" title={state.error}>error</span>;
   if (!result) return null;
-  const level = LEVEL_NAMES[Math.round(result.score)] ?? "";
+  const level = COLUMN_LEVEL_NAMES[Math.round(result.score)] ?? "";
   return (
     <span
       className="flex items-center gap-2"

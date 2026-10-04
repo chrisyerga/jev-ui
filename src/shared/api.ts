@@ -1,4 +1,8 @@
-export type FilterKind = "geo" | "demo" | "movies";
+export type TableDataset = "movies" | "logs";
+
+export const TABLE_DATASETS: readonly TableDataset[] = ["movies", "logs"];
+
+export type FilterKind = "geo" | "demo" | TableDataset;
 
 export const LIMITS = {
   queryChars: 120,
@@ -68,19 +72,30 @@ export interface FitResponse {
   debug: JevCallDebug;
 }
 
-export const COLUMN_LEVELS = [
-  "Not at all: `attribute` does not describe this movie",
-  "Slightly: a little, or only in parts",
-  "Clearly: a fair description of this movie",
-  "Extremely: one of the strongest examples of `attribute`",
-] as const;
+export const COLUMN_LEVEL_NAMES = ["Not at all", "Slightly", "Clearly", "Extremely"] as const;
+
+export const COLUMN_LEVELS: Record<TableDataset, readonly [string, string, string, string]> = {
+  movies: [
+    "Not at all: `attribute` does not describe this movie",
+    "Slightly: a little, or only in parts",
+    "Clearly: a fair description of this movie",
+    "Extremely: one of the strongest examples of `attribute`",
+  ],
+  logs: [
+    "Not at all: `attribute` does not describe this log line",
+    "Slightly: a little, or only indirectly",
+    "Clearly: a fair description of this log line",
+    "Extremely: one of the strongest examples of `attribute` in the log",
+  ],
+};
 
 export interface ColumnRequest {
+  dataset: TableDataset;
   attribute: string;
 }
 
 export interface ColumnResponse {
-  /** Probability-weighted level per movie id, 0 (not at all) to 3 (extremely). */
+  /** Probability-weighted level per row id, 0 (not at all) to 3 (extremely). */
   results: Record<string, FitResult>;
   debug: JevCallDebug;
 }

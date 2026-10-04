@@ -4,11 +4,14 @@ import { DEMO_BY_ID, DEMO_ITEMS } from "../src/data/demographics.js";
 import { INPUT_TYPES, OPTION_SET_IDS, OPTION_SETS, SANDBOX_CONTEXTS, type SandboxContextId } from "../src/data/fieldCatalog.js";
 import { FORMS, type FormId } from "../src/data/forms.js";
 import { GEO_BY_ID, GEO_ITEMS } from "../src/data/geo.js";
+import { LOG_TEXT, LOGS } from "../src/data/logs.js";
 import { MOVIES } from "../src/data/movies.js";
 import {
   COLUMN_LEVELS,
   FIT_LEVELS,
   LIMITS,
+  TABLE_DATASETS,
+  type TableDataset,
   type BriefRequest,
   type BriefResponse,
   type ChoiceResult,
@@ -109,17 +112,41 @@ function fieldSpecQuestions(): Questions {
 const GEO_CANDIDATES = GEO_ITEMS.map((g) => ({ id: g.id, label: g.label }));
 const DEMO_CANDIDATES = DEMO_ITEMS.map((d) => ({ id: d.id, label: d.label }));
 const MOVIE_CANDIDATES = MOVIES.map((m) => ({ id: m.id, label: m.label }));
+const LOG_CANDIDATES = LOGS.map((l) => ({ id: l.id, label: l.label }));
 
 const CANDIDATES: Record<FilterKind, { id: string; label: string }[]> = {
   geo: GEO_CANDIDATES,
   demo: DEMO_CANDIDATES,
   movies: MOVIE_CANDIDATES,
+  logs: LOG_CANDIDATES,
 };
 
 const FILTER_CONTEXT: Record<FilterKind, string> = {
   geo: "A marketer typed `filter` into the search box of an ad-targeting tool to find US locations.",
   demo: "A marketer typed `filter` into the search box of an ad-targeting tool to find audience segments that reach a kind of person.",
   movies: "A viewer typed `filter` into the search box above a table of movies on a streaming service.",
+  logs: "An engineer typed `filter` into the search box of a log viewer showing `log`, one morning of logs from an online shop.",
+};
+
+/** Lines are judged against the whole log, so story-level filters ("root cause") can connect distant lines. */
+const FILTER_STATE: Partial<Record<FilterKind, Record<string, string>>> = {
+  logs: { log: LOG_TEXT },
+};
+
+const COLUMN_SETUP: Record<TableDataset, { state: Record<string, string>; subject: string; question: string }> = {
+  movies: {
+    state: { context: "A viewer added a column named `attribute` to a table of movies, to rate every movie on it." },
+    subject: "movie",
+    question: "How well does `attribute` describe `movie`?",
+  },
+  logs: {
+    state: {
+      context: "An engineer added a column named `attribute` to a log viewer showing `log`, to rate every line on it.",
+      log: LOG_TEXT,
+    },
+    subject: "line",
+    question: "Read in the context of the whole `log`, how well does `attribute` describe `line`?",
+  },
 };
 
 function filterQuestion(kind: FilterKind, label: string): NoulQuestion {
@@ -148,6 +175,14 @@ function filterQuestion(kind: FilterKind, label: string): NoulQuestion {
           false: "`movie` does not fit `filter`, or only weakly",
         },
       );
+    case "logs":
+      return noul(
+        { line: label, question: "Read in the context of the whole `log`, does `line` match what the engineer is looking for in `filter`?" },
+        {
+          true: "`line` is clearly one of the lines `filter` asks for",
+          false: "`line` does not fit `filter`, or only weakly",
+        },
+      );
   }
 }
 
@@ -174,13 +209,13 @@ export const api = new Hono()
     const body = await c.req.json<Partial<FilterRequest>>();
     const query = typeof body.query === "string" ? body.query.trim() : "";
     const kind = typeof body.kind === "string" && body.kind in CANDIDATES ? body.kind : undefined;
-    if (!kind || !query) return c.json({ error: "Expected { kind: 'geo' | 'demo' | 'movies', query }" }, 400);
+    if (!kind || !query) return c.json({ error: `Expected { kind: ${Object.keys(CANDIDATES).map((k) => `'${k}'`).join(" | ")}, query }` }, 400);
     if (query.length > LIMITS.queryChars) return c.json({ error: `Query is limited to ${LIMITS.queryChars} characters` }, 400);
 
     const response = await cached<FilterResponse>(`filter:${kind}:${query.toLowerCase()}`, async () => {
       const result = await judgeCandidates({
         items: CANDIDATES[kind],
-        state: { context: FILTER_CONTEXT[kind], filter: query },
+        state: { context: FILTER_CONTEXT[kind], filter: query, ...FILTER_STATE[kind] },
         buildQuestion: (label) => filterQuestion(kind, label),
       });
       return { scores: nouls(result), debug: result.debug };
@@ -264,20 +299,18 @@ export const api = new Hono()
   .post("/column", async (c) => {
     const body = await c.req.json<Partial<ColumnRequest>>();
     const attribute = typeof body.attribute === "string" ? body.attribute.trim() : "";
-    if (!attribute) return c.json({ error: "Expected { attribute }" }, 400);
+    const dataset = TABLE_DATASETS.find((d) => d === body.dataset);
+    if (!attribute || !dataset) return c.json({ error: "Expected { dataset: 'movies' | 'logs', attribute }" }, 400);
     if (attribute.length > LIMITS.attributeChars) {
       return c.json({ error: `Column names are limited to ${LIMITS.attributeChars} characters` }, 400);
     }
 
-    const response = await cached<ColumnResponse>(`column:${attribute.toLowerCase()}`, async () => {
+    const setup = COLUMN_SETUP[dataset];
+    const response = await cached<ColumnResponse>(`column:${dataset}:${attribute.toLowerCase()}`, async () => {
       const result = await judgeCandidates({
-        items: MOVIE_CANDIDATES,
-        state: {
-          context: "A viewer added a column named `attribute` to a table of movies, to rate every movie on it.",
-          attribute,
-        },
-        buildQuestion: (label) =>
-          score({ movie: label, question: "How well does `attribute` describe `movie`?" }, COLUMN_LEVELS),
+        items: CANDIDATES[dataset],
+        state: { ...setup.state, attribute },
+        buildQuestion: (label) => score({ [setup.subject]: label, question: setup.question }, COLUMN_LEVELS[dataset]),
       });
       return { results: scoresOf(result), debug: result.debug };
     });

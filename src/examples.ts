@@ -14,8 +14,8 @@ export const EXAMPLES: Example[] = [
     title: "Data-aware",
     titleAccent: "Tables",
     summary:
-      "A table component that can filter and sort by meaning, not just string matching. Filter by “funny and gory” or “set in tokyo”, or add a new column like “how scary” and Jev rates every row.",
-    concepts: ["Semantic row filter", "Jev-computed columns", "Sort by meaning"],
+      "A table component that can filter and sort by meaning, not just string matching. Filter movies by “funny and gory”, or switch to a morning of server logs and ask for the “root cause of the checkout outage”. Add a column like “how urgent” and Jev rates every row.",
+    concepts: ["Semantic row filter", "Jev-computed columns", "Whole-log context"],
     path: "/tables",
   },
   {

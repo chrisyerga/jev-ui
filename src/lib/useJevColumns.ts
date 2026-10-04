@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { FitResult } from "../shared/api";
+import type { FitResult, TableDataset } from "../shared/api";
 import { api } from "./api";
 
 export type JevColumnState =
@@ -11,18 +11,22 @@ export function columnKey(attribute: string) {
   return attribute.trim().toLowerCase();
 }
 
-/** Fetches each attribute's column once; removed columns keep their results so re-adding is instant. */
-export function useJevColumns(attributes: string[]): Record<string, JevColumnState> {
+/**
+ * Fetches each attribute's column once per dataset; removed columns keep their results so re-adding is instant.
+ * The result is keyed by `columnKey(attribute)`.
+ */
+export function useJevColumns(dataset: TableDataset, attributes: string[]): Record<string, JevColumnState> {
   const [entries, setEntries] = useState<Record<string, JevColumnState>>({});
   const requested = useRef(new Set<string>());
 
   useEffect(() => {
     for (const attribute of attributes) {
-      const key = columnKey(attribute);
+      const attr = columnKey(attribute);
+      const key = `${dataset}:${attr}`;
       if (requested.current.has(key)) continue;
       requested.current.add(key);
       api
-        .column({ attribute: key })
+        .column({ dataset, attribute: attr })
         .then((res) =>
           setEntries((e) => ({ ...e, [key]: { status: "done", results: res.results, cached: res.debug.cached } })),
         )
@@ -31,12 +35,12 @@ export function useJevColumns(attributes: string[]): Record<string, JevColumnSta
           setEntries((e) => ({ ...e, [key]: { status: "error", error: err instanceof Error ? err.message : String(err) } }));
         });
     }
-  }, [attributes]);
+  }, [dataset, attributes]);
 
   return Object.fromEntries(
     attributes.map((a) => {
-      const key = columnKey(a);
-      return [key, entries[key] ?? { status: "loading" }];
+      const attr = columnKey(a);
+      return [attr, entries[`${dataset}:${attr}`] ?? { status: "loading" }];
     }),
   );
 }
